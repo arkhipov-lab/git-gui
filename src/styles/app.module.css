@@ -129,6 +129,13 @@
   overflow: auto;
 }
 
+.settings {
+  box-sizing: border-box;
+  width: min(760px, 100%);
+  margin-inline: auto;
+  padding: var(--mantine-spacing-md);
+}
+
 .groupLabel {
   display: flex;
   justify-content: space-between;

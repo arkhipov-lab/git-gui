@@ -1,7 +1,7 @@
 import { Button, Group, Modal, NativeSelect, PasswordInput, Stack, Text, TextInput, Textarea } from "@mantine/core";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { open } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "../../services/git/api";
 import { normalizeError } from "../../services/tauri/client";
 import { useSettingsStore } from "../../stores/settingsStore";
@@ -24,13 +24,21 @@ export function SettingsView() {
   });
   const info = environment.data;
   const [templateText, setTemplateText] = useState(serializeTemplates(templates));
+  const templateDraft = useRef(templateText);
+  templateDraft.current = templateText;
+  useEffect(() => () => {
+    const next = parseTemplates(templateDraft.current);
+    const current = useSettingsStore.getState().branchTemplates;
+    if (JSON.stringify(next) === JSON.stringify(current)) return;
+    useSettingsStore.getState().setTemplates(next);
+  }, []);
   return (
     <div className={styles.scroll}>
-      <Stack p="md" maw={760} gap="sm">
+      <Stack className={styles.settings} gap="sm">
         <Text fw={650}>Settings</Text>
         <NativeSelect label="Theme" value={theme} data={[{ value: "dark", label: "Dark" }, { value: "light", label: "Light" }]} onChange={(event) => useSettingsStore.getState().setTheme(event.currentTarget.value === "light" ? "light" : "dark")} />
         <TextInput label="Git executable" description={info?.gitVersion ?? info?.gitError ?? "Detecting Git"} value={gitExecutable} placeholder={info?.gitPath ?? "git"} onChange={(event) => useSettingsStore.getState().setGitExecutable(event.currentTarget.value)} />
-        <Group>
+        <Group wrap="wrap">
           <Button variant="default" onClick={() => void detect()}>Detect Git</Button>
           <Button variant="default" onClick={() => void environment.refetch()}>Refresh diagnostics</Button>
         </Group>
@@ -53,8 +61,7 @@ export function SettingsView() {
         ))}
         <Button variant="default" onClick={addIdentity}>Add name and email</Button>
         <TextInput label="Default initial branch" value={defaultBranch} onChange={(event) => useSettingsStore.getState().setDefaultBranch(event.currentTarget.value)} />
-        <Textarea label="Branch templates" description="One template per line: Label | pattern. Tokens: {type} {ticket} {description}." minRows={5} value={templateText} onChange={(event) => setTemplateText(event.currentTarget.value)} />
-        <Button variant="default" onClick={saveTemplates}>Save templates</Button>
+        <Textarea label="Branch templates" description="One template per line: Label | pattern. Tokens: {type} {ticket} {description}. Saved when you leave the field." minRows={5} value={templateText} onChange={(event) => setTemplateText(event.currentTarget.value)} onBlur={commitTemplates} />
       </Stack>
     </div>
   );
@@ -76,8 +83,11 @@ export function SettingsView() {
     useSettingsStore.getState().setIdentities([...list, { id: crypto.randomUUID(), label: "", name: "", email: "" }]);
   }
 
-  function saveTemplates() {
-    useSettingsStore.getState().setTemplates(parseTemplates(templateText));
+  function commitTemplates() {
+    const next = parseTemplates(templateDraft.current);
+    const current = useSettingsStore.getState().branchTemplates;
+    if (JSON.stringify(next) === JSON.stringify(current)) return;
+    useSettingsStore.getState().setTemplates(next);
   }
 }
 
@@ -91,12 +101,12 @@ function SshKeySummary({ record }: { record: SshKeyRecord }) {
   const keyPath = record.path.trim();
   return (
     <Stack gap={6} p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
-      <Group justify="space-between" align="center">
-        <div style={{ minWidth: 0 }}>
-          <Text size="sm" fw={600}>{title}</Text>
-          <Text size="xs" c="dimmed" className={styles.mono}>{keyPath || "No key file chosen"}</Text>
+      <Group justify="space-between" align="center" wrap="nowrap" gap="sm">
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <Text size="sm" fw={600} truncate="end">{title}</Text>
+          <Text size="xs" c="dimmed" className={styles.mono} truncate="end">{keyPath || "No key file chosen"}</Text>
         </div>
-        <Button variant="default" loading={opening} onClick={() => void manage()}>Manage</Button>
+        <Button variant="default" loading={opening} onClick={() => void manage()} style={{ flexShrink: 0 }}>Manage</Button>
       </Group>
       {error ? <Text size="sm" c="red">{error}</Text> : null}
       {open ? (
@@ -157,8 +167,8 @@ function SshKeyManager({
     <Modal opened onClose={onClose} title={record.label.trim() || "SSH key"} size="lg">
       <Stack>
         <TextInput label="Label" value={record.label} placeholder="Work" onChange={(event) => update({ label: event.currentTarget.value })} />
-        <Group align="end">
-          <TextInput style={{ flex: 1 }} label="Private key" description="Example: /Users/you/.ssh/id_rsa_etna" value={record.path} onChange={(event) => update({ path: event.currentTarget.value })} />
+        <Group align="end" wrap="wrap">
+          <TextInput style={{ flex: "1 1 200px", minWidth: 0 }} label="Private key" description="Example: /Users/you/.ssh/id_rsa_etna" value={record.path} onChange={(event) => update({ path: event.currentTarget.value })} />
           <Button variant="default" onClick={() => void pick()}>Choose</Button>
         </Group>
         <PasswordInput
@@ -173,12 +183,12 @@ function SshKeyManager({
             : "Save or remove a passphrase to check the Keychain for the path above."}
         </Text>
         {passphraseError ? <Text size="sm" c="red">{passphraseError}</Text> : null}
-        <Group>
+        <Group wrap="wrap">
           <Button variant="default" disabled={!keyPath.startsWith("/") || passphrase.length === 0} onClick={() => void savePassphrase()}>Save in Keychain</Button>
           <Button variant="default" disabled={!samePath || !stored} onClick={() => void clearPassphrase()}>Remove passphrase</Button>
         </Group>
-        <Group align="end">
-          <TextInput style={{ flex: 1 }} label="SSH connection test host" value={host} onChange={(event) => setHost(event.currentTarget.value)} />
+        <Group align="end" wrap="wrap">
+          <TextInput style={{ flex: "1 1 200px", minWidth: 0 }} label="SSH connection test host" value={host} onChange={(event) => setHost(event.currentTarget.value)} />
           <Button variant="default" disabled={!keyPath.startsWith("/")} onClick={() => void test()}>Test</Button>
         </Group>
         {ssh ? <pre className={styles.output}>{`${ssh.display}\nexit ${ssh.exitCode ?? "—"}\n${ssh.stdout}\n${ssh.stderr}`}</pre> : null}
@@ -241,9 +251,9 @@ function IdentityCard({ record }: { record: IdentityRecord }) {
   return (
     <Stack gap={6} p="sm" style={{ border: "1px solid var(--mantine-color-default-border)", borderRadius: 8 }}>
       <TextInput label="Label" value={record.label} placeholder="Work" onChange={(event) => update({ label: event.currentTarget.value })} />
-      <Group grow>
-        <TextInput label="user.name" value={record.name} onChange={(event) => update({ name: event.currentTarget.value })} />
-        <TextInput label="user.email" value={record.email} onChange={(event) => update({ email: event.currentTarget.value })} />
+      <Group grow wrap="wrap">
+        <TextInput label="user.name" value={record.name} onChange={(event) => update({ name: event.currentTarget.value })} style={{ flex: "1 1 180px" }} />
+        <TextInput label="user.email" value={record.email} onChange={(event) => update({ email: event.currentTarget.value })} style={{ flex: "1 1 180px" }} />
       </Group>
       <Button variant="default" color="red" onClick={remove}>Remove</Button>
     </Stack>
