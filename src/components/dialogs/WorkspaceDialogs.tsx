@@ -16,6 +16,7 @@ import { BusyButton } from "../common/BusyButton";
 import { BranchPicker } from "../common/BranchPicker";
 import { IdentitySelect, SshSelect } from "../common/AuthFields";
 import { defaultIdentityId, defaultSshId, identityFor, rememberIdentity, rememberSsh, sshPathFor } from "../../features/auth";
+import { appName, appVersion, formatPublished, publishedAt } from "../../releaseInfo";
 import { CommitDetails } from "../commits/CommitDetails";
 import { HistoryView } from "../commits/HistoryView";
 import { DiffViewer } from "../diff/DiffViewer";
@@ -46,6 +47,7 @@ export function WorkspaceDialogs() {
       {path && dialog?.type === "cherry-pick" ? <CherryPickDialog path={path} commits={dialog.commits} onClose={close} /> : null}
       {path && dialog?.type === "cherry-pick-into" ? <CherryPickIntoDialog path={path} onClose={close} /> : null}
       {path && dialog?.type === "sequence" ? <SequenceDialog path={path} action={dialog.action} onClose={close} /> : null}
+      {dialog?.type === "about" ? <AboutDialog onClose={close} /> : null}
       {dialog?.type === "confirm" ? <ConfirmDialog dialog={dialog} onClose={close} /> : null}
     </>
   );
@@ -628,6 +630,19 @@ function SequenceDialog({ path, action, onClose }: { path: string; action: "cont
     setRunning(false);
     if (ok) onClose();
   }
+}
+
+function AboutDialog({ onClose }: { onClose: () => void }) {
+  const published = formatPublished(publishedAt);
+  return (
+    <Modal opened onClose={onClose} title="About">
+      <Stack gap={6}>
+        <Text fw={650}>{appName}</Text>
+        <Text size="sm">Version {appVersion}</Text>
+        <Text size="sm">{published ? `Published ${published}` : "Not published"}</Text>
+      </Stack>
+    </Modal>
+  );
 }
 
 function ConfirmDialog({ dialog, onClose }: { dialog: Extract<DialogRequest, { type: "confirm" }>; onClose: () => void }) {

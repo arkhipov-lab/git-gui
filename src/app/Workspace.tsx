@@ -136,6 +136,7 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
   return (
     <div className={styles.panel}>
       <div className={styles.toolbar}>
+        <Button size="compact-sm" variant="subtle" onClick={() => useUiStore.getState().setDialog({ type: "about" })}>About</Button>
         <Menu position="bottom-start">
           <Menu.Target>
             <Button size="compact-sm" variant="subtle">Open</Button>

@@ -178,6 +178,7 @@ function runMenu(id: string, queryClient: ReturnType<typeof useQueryClient>) {
   if (id === "branch") ui.setDialog({ type: "branch" });
   if (id === "stash") ui.setDialog({ type: "stash" });
   if (id === "cherry-pick") ui.setDialog({ type: "cherry-pick-into" });
+  if (id === "about") ui.setDialog({ type: "about" });
   if (id === "settings") ui.setView(ui.view === "settings" ? "workspace" : "settings");
   if (id === "toggle-nav") window.dispatchEvent(new CustomEvent("git-desktop-toggle", { detail: "nav" }));
   if (id === "toggle-details") window.dispatchEvent(new CustomEvent("git-desktop-toggle", { detail: "details" }));

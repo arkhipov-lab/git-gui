@@ -1,0 +1,52 @@
+name: Release
+
+on:
+  pull_request:
+    types: [closed]
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-main
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require the release token
+        env:
+          RELEASE_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: test -n "$RELEASE_TOKEN"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ secrets.RELEASE_TOKEN }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - id: bump
+        env:
+          PR_COMMIT_COUNT: ${{ github.event.pull_request.commits }}
+        run: node scripts/bump-version.mjs
+
+      - name: Commit the version and publish tags
+        if: steps.bump.outputs.released == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          version="${{ steps.bump.outputs.version }}"
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock src/release.json
+          git commit -m "chore: release v${version}"
+          git tag -a "v${version}" -m "v${version}"
+          git tag -f latest
+          git push origin HEAD:main
+          git push origin "refs/tags/v${version}"
+          git push --force origin refs/tags/latest

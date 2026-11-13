@@ -33,6 +33,7 @@ export type DialogRequest =
   | { type: "cherry-pick"; commits: HistoryCommit[] }
   | { type: "cherry-pick-into" }
   | { type: "sequence"; action: "continue" | "skip" }
+  | { type: "about" }
   | ConfirmRequest;
 
 export interface HistoryCommit {
