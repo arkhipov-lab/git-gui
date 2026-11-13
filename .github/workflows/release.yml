@@ -1,4 +1,5 @@
 name: Release
+# Push the version commit to main with RELEASE_TOKEN.
 
 on:
   pull_request:
