@@ -121,7 +121,7 @@ fn build_menu(app: &tauri::AppHandle) -> tauri::Result<Menu<tauri::Wry>> {
         "Git Desktop",
         true,
         &[
-            &PredefinedMenuItem::about(app, Some("About Git Desktop"), None)?,
+            &MenuItem::with_id(app, "about", "About Git Desktop", true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &PredefinedMenuItem::hide(app, None)?,
             &PredefinedMenuItem::hide_others(app, None)?,

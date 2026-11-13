@@ -1,0 +1,23 @@
+name: Commits
+
+on:
+  pull_request:
+    branches: [main]
+
+jobs:
+  messages:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Check commit types
+        run: |
+          git fetch origin ${{ github.base_ref }}
+          node scripts/check-commits.mjs origin/${{ github.base_ref }}
