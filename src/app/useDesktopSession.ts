@@ -155,7 +155,9 @@ function refreshActive(queryClient: ReturnType<typeof useQueryClient>) {
 }
 
 function focusSearch() {
-  document.getElementById("repo-search")?.focus();
+  const { active, repoUi } = useWorkspaceStore.getState();
+  if (!active) return;
+  useUiStore.getState().openSearch(active, repoUi[active]?.section ?? "changes");
 }
 
 function cycle(direction: 1 | -1) {

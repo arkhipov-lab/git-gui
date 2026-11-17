@@ -104,6 +104,60 @@
   overflow: hidden;
 }
 
+.center {
+  position: relative;
+}
+
+.repoSearch {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.repoSearchInput {
+  width: 220px;
+}
+
+.searchClear {
+  display: grid;
+  place-items: center;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.searchClearMark {
+  display: block;
+  transform: rotate(45deg);
+  font-size: 16px;
+  line-height: 1;
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.iconButton:hover {
+  background: var(--mantine-color-default-hover);
+}
+
 .separator {
   background: var(--mantine-color-default-border);
   flex: 0 0 6px;

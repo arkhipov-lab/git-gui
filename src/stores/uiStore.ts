@@ -50,6 +50,15 @@ export interface FileFocus {
   to?: string;
 }
 
+export interface SearchDraft {
+  value: string;
+  open: boolean;
+}
+
+export function searchKey(path: string, section: string): string {
+  return `${path}\n${section}`;
+}
+
 interface UiState {
   view: AppView;
   dialog: DialogRequest;
@@ -57,7 +66,8 @@ interface UiState {
   progress: Record<string, string[]>;
   errors: Record<string, GitError | null>;
   focus: Record<string, FileFocus | null>;
-  search: string;
+  searches: Record<string, SearchDraft>;
+  searchFocus: number;
   openMenu: boolean;
   setView: (view: AppView) => void;
   setDialog: (dialog: DialogRequest) => void;
@@ -66,7 +76,10 @@ interface UiState {
   clearProgress: (path: string) => void;
   setError: (path: string, error: GitError | null) => void;
   setFocus: (repo: string, focus: FileFocus | null) => void;
-  setSearch: (search: string) => void;
+  setSearchValue: (path: string, section: string, value: string) => void;
+  setSearchOpen: (path: string, section: string, open: boolean) => void;
+  clearSearch: (path: string, section: string) => void;
+  openSearch: (path: string, section: string) => void;
   setOpenMenu: (openMenu: boolean) => void;
 }
 
@@ -77,7 +90,8 @@ export const useUiStore = create<UiState>((set) => ({
   progress: {},
   errors: {},
   focus: {},
-  search: "",
+  searches: {},
+  searchFocus: 0,
   openMenu: false,
   setView: (view) => set({ view }),
   setDialog: (dialog) => set({ dialog }),
@@ -100,6 +114,32 @@ export const useUiStore = create<UiState>((set) => ({
     }),
   setError: (path, error) => set((state) => ({ errors: { ...state.errors, [path]: error } })),
   setFocus: (repo, focus) => set((state) => ({ focus: { ...state.focus, [repo]: focus } })),
-  setSearch: (search) => set({ search }),
+  setSearchValue: (path, section, value) =>
+    set((state) => {
+      const key = searchKey(path, section);
+      const current = state.searches[key] ?? { value: "", open: false };
+      return { searches: { ...state.searches, [key]: { ...current, value } } };
+    }),
+  setSearchOpen: (path, section, open) =>
+    set((state) => {
+      const key = searchKey(path, section);
+      const current = state.searches[key] ?? { value: "", open: false };
+      return { searches: { ...state.searches, [key]: { ...current, open } } };
+    }),
+  clearSearch: (path, section) =>
+    set((state) => {
+      const key = searchKey(path, section);
+      const current = state.searches[key] ?? { value: "", open: false };
+      return { searches: { ...state.searches, [key]: { ...current, value: "" } } };
+    }),
+  openSearch: (path, section) =>
+    set((state) => {
+      const key = searchKey(path, section);
+      const current = state.searches[key] ?? { value: "", open: false };
+      return {
+        searches: { ...state.searches, [key]: { ...current, open: true } },
+        searchFocus: state.searchFocus + 1,
+      };
+    }),
   setOpenMenu: (openMenu) => set({ openMenu }),
 }));
