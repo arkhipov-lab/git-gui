@@ -104,21 +104,26 @@ function BranchGroup({
 
 export function RemoteList({
   remotes,
+  query,
   progress,
   activeRemote,
   onFetch,
   onRemove,
 }: {
   remotes: RemoteInfo[];
+  query: string;
   progress?: string;
   activeRemote?: string;
   onFetch: (name: string) => void;
   onRemove: (name: string) => void;
 }) {
+  const needle = query.trim().toLowerCase();
+  const visible = remotes.filter((remote) => remote.name.toLowerCase().includes(needle) || remote.fetchUrl.toLowerCase().includes(needle));
   if (remotes.length === 0) return <Text p="sm" c="dimmed">No remotes.</Text>;
+  if (visible.length === 0) return <Text p="sm" c="dimmed">No matching remotes.</Text>;
   return (
     <div className={styles.scroll}>
-      {remotes.map((remote) => (
+      {visible.map((remote) => (
         <div key={remote.name} className={styles.branchRow}>
           <span />
           <span>
@@ -178,6 +183,7 @@ export function TagList({
 
 export function StashList({
   stashes,
+  query,
   selected,
   onSelect,
   onApply,
@@ -185,17 +191,21 @@ export function StashList({
   onDrop,
 }: {
   stashes: StashInfo[];
+  query: string;
   selected?: number | null;
   onSelect: (stash: StashInfo) => void;
   onApply: (stash: StashInfo) => void;
   onPop: (stash: StashInfo) => void;
   onDrop: (stash: StashInfo) => void;
 }) {
-  const windowed = useScreenWindow(stashes.length, 30, String(stashes.length));
+  const needle = query.trim().toLowerCase();
+  const visible = stashes.filter((stash) => stash.message.toLowerCase().includes(needle) || stash.reference.toLowerCase().includes(needle));
+  const windowed = useScreenWindow(visible.length, 30, needle || String(visible.length));
   if (stashes.length === 0) return <Text p="sm" c="dimmed">No stashes.</Text>;
+  if (visible.length === 0) return <Text p="sm" c="dimmed">No matching stashes.</Text>;
   return (
     <div ref={windowed.ref} className={styles.scroll}>
-      {stashes.slice(0, windowed.limit).map((stash) => (
+      {visible.slice(0, windowed.limit).map((stash) => (
         <button key={stash.commit} className={styles.branchRow} data-active={selected === stash.index} onClick={() => onSelect(stash)}>
           <span>{stash.index}</span>
           <span>

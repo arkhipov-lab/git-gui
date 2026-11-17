@@ -12,6 +12,7 @@ import { DiffViewer } from "../components/diff/DiffViewer";
 import { GitErrorView } from "../components/common/GitErrorView";
 import { BottomDock } from "../components/layout/BottomDock";
 import { CommandBar } from "../components/layout/CommandBar";
+import { RepoSearch } from "../components/layout/RepoSearch";
 import { StatusStrip } from "../components/layout/StatusStrip";
 import { TabBar } from "../components/layout/TabBar";
 import { BranchList, RemoteList, StashList, TagList } from "../components/repository/ReferenceLists";
@@ -19,7 +20,7 @@ import { api } from "../services/git/api";
 import { refreshRepository, runMutation } from "../services/git/actions";
 import { useLogStore } from "../stores/logStore";
 import { useSettingsStore } from "../stores/settingsStore";
-import { useUiStore } from "../stores/uiStore";
+import { searchKey, useUiStore } from "../stores/uiStore";
 import { useWorkspaceStore } from "../stores/workspaceStore";
 import type { BranchInfo, FileDiffKind, FileEntry, RepoSection, RepoStatus } from "../types/git";
 import { joinRepoPath } from "../utils/path";
@@ -43,7 +44,8 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
   const activity = remoteId ? { id: remoteId, detail: progressText(busyLabel ?? "Working", progressLine) } : null;
   const error = useUiStore((state) => (active ? state.errors[active] : null));
   const focus = useUiStore((state) => (active ? state.focus[active] : null));
-  const search = useUiStore((state) => state.search);
+  const searchDraft = useUiStore((state) => (active ? state.searches[searchKey(active, section)] : undefined));
+  const search = searchDraft?.open ? searchDraft.value : "";
   const entries = useLogStore((state) => state.entries);
   const view = useUiStore((state) => state.view);
   const [stashIndex, setStashIndex] = useState<Record<string, number | null>>({});
@@ -168,8 +170,6 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
       >
         <CommandBar
           disabled={!active}
-          search={search}
-          onSearch={(value) => useUiStore.getState().setSearch(value)}
           onRefresh={() => active && void refreshRepository(queryClient, active)}
           onFetch={() => useUiStore.getState().setDialog({ type: "fetch" })}
           onPull={() => useUiStore.getState().setDialog({ type: "pull" })}
@@ -199,7 +199,8 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
               </Panel>
               <Separator className={styles.separator} style={{ flexBasis: 6 }} />
               <Panel id="center" minSize="30%">
-                <div className={styles.panel}>
+                <div className={`${styles.panel} ${styles.center}`}>
+                  {active ? <RepoSearch path={active} section={section} /> : null}
                   {error ? <GitErrorView error={error} onClose={() => active && useUiStore.getState().setError(active, null)} /> : null}
                   {statusPending ? <Text p="sm" c="dimmed">Loading repository…</Text> : null}
                   {status && section === "changes" ? (
@@ -216,11 +217,11 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                         setChangesDiff(false);
                         if (active) useUiStore.getState().setFocus(active, null);
                       }}
-                      onStage={(paths) => active && void mutate(active, "Stage", () => paths.length > 1 && coversUnstaged(status, paths) ? api.stageAll(active) : api.stagePaths(active, paths))}
-                      onUnstage={(paths) => active && void mutate(active, "Unstage", () => paths.length > 1 && status.files.filter((file) => file.staged).every((file) => paths.includes(file.path)) ? api.unstageAll(active) : api.unstagePaths(active, paths))}
-                      onDiscard={(paths) => confirmDiscard(paths)}
-                      onOpen={(file) => active && void openPath(joinRepoPath(active, file))}
-                      onCopy={(file) => void navigator.clipboard.writeText(active ? joinRepoPath(active, file) : file)}
+                      onStage={(paths) => active && void mutate(active, "Stage", () => paths.length > 1 && coversUnstaged(status, paths) ? api.stageAll(active) : api.stagePaths(active, paths), true)}
+                      onUnstage={(paths) => active && void mutate(active, "Unstage", () => paths.length > 1 && status.files.filter((file) => file.staged).every((file) => paths.includes(file.path)) ? api.unstageAll(active) : api.unstagePaths(active, paths), true)}
+                      onDiscard={(paths) => { dropSearch(); confirmDiscard(paths); }}
+                      onOpen={(file) => { dropSearch(); if (active) void openPath(joinRepoPath(active, file)); }}
+                      onCopy={(file) => { dropSearch(); void navigator.clipboard.writeText(active ? joinRepoPath(active, file) : file); }}
                     />
                   ) : null}
                   {section === "history" ? (
@@ -236,12 +237,12 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                         useUiStore.getState().setFocus(active, null);
                       }}
                       onLoadMore={() => void log.fetchNextPage()}
-                      onCreateBranch={(hash) => useUiStore.getState().setDialog({ type: "branch", source: hash })}
-                      onCopy={(value) => void navigator.clipboard.writeText(value)}
-                      onCompare={(hash) => active && useUiStore.getState().setFocus(active, { path: "", kind: "range", from: hash, to: "HEAD" })}
-                      onSoftReset={(commits) => useUiStore.getState().setDialog({ type: "soft-reset", commits: commits.map(commitRef) })}
-                      onRevert={(commits) => useUiStore.getState().setDialog({ type: "revert", commits: commits.map(commitRef) })}
-                      onCherryPick={(commits) => useUiStore.getState().setDialog({ type: "cherry-pick", commits: commits.map(commitRef) })}
+                      onCreateBranch={(hash) => { dropSearch(); useUiStore.getState().setDialog({ type: "branch", source: hash }); }}
+                      onCopy={(value) => { dropSearch(); void navigator.clipboard.writeText(value); }}
+                      onCompare={(hash) => { dropSearch(); if (active) useUiStore.getState().setFocus(active, { path: "", kind: "range", from: hash, to: "HEAD" }); }}
+                      onSoftReset={(commits) => { dropSearch(); useUiStore.getState().setDialog({ type: "soft-reset", commits: commits.map(commitRef) }); }}
+                      onRevert={(commits) => { dropSearch(); useUiStore.getState().setDialog({ type: "revert", commits: commits.map(commitRef) }); }}
+                      onCherryPick={(commits) => { dropSearch(); useUiStore.getState().setDialog({ type: "cherry-pick", commits: commits.map(commitRef) }); }}
                       onPickedCount={(count) => setCommitMulti(count > 1)}
                     />
                   ) : null}
@@ -273,12 +274,12 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                           useUiStore.getState().setFocus(active, null);
                         }}
                         onLoadMore={() => void log.fetchNextPage()}
-                        onCreateBranch={(hash) => useUiStore.getState().setDialog({ type: "branch", source: hash })}
-                        onCopy={(value) => void navigator.clipboard.writeText(value)}
-                        onCompare={(hash) => active && useUiStore.getState().setFocus(active, { path: "", kind: "range", from: hash, to: "HEAD" })}
-                        onSoftReset={(commits) => useUiStore.getState().setDialog({ type: "soft-reset", commits: commits.map(commitRef) })}
-                        onRevert={(commits) => useUiStore.getState().setDialog({ type: "revert", commits: commits.map(commitRef) })}
-                        onCherryPick={(commits) => useUiStore.getState().setDialog({ type: "cherry-pick", commits: commits.map(commitRef) })}
+                        onCreateBranch={(hash) => { dropSearch(); useUiStore.getState().setDialog({ type: "branch", source: hash }); }}
+                        onCopy={(value) => { dropSearch(); void navigator.clipboard.writeText(value); }}
+                        onCompare={(hash) => { dropSearch(); if (active) useUiStore.getState().setFocus(active, { path: "", kind: "range", from: hash, to: "HEAD" }); }}
+                        onSoftReset={(commits) => { dropSearch(); useUiStore.getState().setDialog({ type: "soft-reset", commits: commits.map(commitRef) }); }}
+                        onRevert={(commits) => { dropSearch(); useUiStore.getState().setDialog({ type: "revert", commits: commits.map(commitRef) }); }}
+                        onCherryPick={(commits) => { dropSearch(); useUiStore.getState().setDialog({ type: "cherry-pick", commits: commits.map(commitRef) }); }}
                         onPickedCount={(count) => setCommitMulti(count > 1)}
                       />
                     </div>
@@ -291,13 +292,13 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                       <BranchList
                         branches={branches.data ?? []}
                         query={search}
-                        onCheckout={(branch) => active && void mutate(active, "Switch branch", () => api.switchBranch(active, branch.name))}
-                        onRename={(branch) => useUiStore.getState().setDialog({ type: "rename-branch", name: branch.name })}
-                        onDelete={(branch) => useUiStore.getState().setDialog({ type: "delete-branch", name: branch.name })}
-                        onUpstream={(branch) => useUiStore.getState().setDialog({ type: "set-upstream", branch: branch.name })}
-                        onPush={(branch) => useUiStore.getState().setDialog({ type: "push", branch: branch.name, setUpstream: !branch.upstream || branch.upstreamGone })}
-                        onPull={(branch) => useUiStore.getState().setDialog({ type: "pull", ...pullTarget(branch), checkedOut: branch.current })}
-                        onCopy={(name) => void navigator.clipboard.writeText(name)}
+                        onCheckout={(branch) => active && void mutate(active, "Switch branch", () => api.switchBranch(active, branch.name), true)}
+                        onRename={(branch) => { dropSearch(); useUiStore.getState().setDialog({ type: "rename-branch", name: branch.name }); }}
+                        onDelete={(branch) => { dropSearch(); useUiStore.getState().setDialog({ type: "delete-branch", name: branch.name }); }}
+                        onUpstream={(branch) => { dropSearch(); useUiStore.getState().setDialog({ type: "set-upstream", branch: branch.name }); }}
+                        onPush={(branch) => { dropSearch(); useUiStore.getState().setDialog({ type: "push", branch: branch.name, setUpstream: !branch.upstream || branch.upstreamGone }); }}
+                        onPull={(branch) => { dropSearch(); useUiStore.getState().setDialog({ type: "pull", ...pullTarget(branch), checkedOut: branch.current }); }}
+                        onCopy={(name) => { dropSearch(); void navigator.clipboard.writeText(name); }}
                       />
                     </div>
                   ) : null}
@@ -308,10 +309,11 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                       </div>
                       <RemoteList
                         remotes={remotes.data ?? []}
+                        query={search}
                         progress={progressLine}
                         activeRemote={busyLabel?.startsWith("Fetch ") ? busyLabel.slice("Fetch ".length) : undefined}
-                        onFetch={(name) => active && void mutate(active, `Fetch ${name}`, () => api.fetchRemote(active, name, false, "branches", sshFor(active), crypto.randomUUID()))}
-                        onRemove={(name) => confirmRemoveRemote(name)}
+                        onFetch={(name) => active && void mutate(active, `Fetch ${name}`, () => api.fetchRemote(active, name, false, "branches", sshFor(active), crypto.randomUUID()), true)}
+                        onRemove={(name) => { dropSearch(); confirmRemoveRemote(name); }}
                       />
                     </div>
                   ) : null}
@@ -324,10 +326,14 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                       <TagList
                         tags={tags.data ?? []}
                         query={search}
-                        onSelect={(tag) => active && useWorkspaceStore.getState().patchUi(active, { selectedCommit: tag.commit, section: "history" })}
-                        onDelete={(tag) => confirmDeleteTag(tag.name)}
-                        onPush={(tag) => useUiStore.getState().setDialog({ type: "push-tag", name: tag.name })}
+                        onSelect={(tag) => {
+                          dropSearch();
+                          if (active) useWorkspaceStore.getState().patchUi(active, { selectedCommit: tag.commit, section: "history" });
+                        }}
+                        onDelete={(tag) => { dropSearch(); confirmDeleteTag(tag.name); }}
+                        onPush={(tag) => { dropSearch(); useUiStore.getState().setDialog({ type: "push-tag", name: tag.name }); }}
                         onCompare={(tag) => {
+                          dropSearch();
                           if (!active) return;
                           useWorkspaceStore.getState().setSection(active, "history");
                           useUiStore.getState().setFocus(active, { path: "", kind: "range", from: tag.name, to: "HEAD" });
@@ -338,11 +344,12 @@ export function Workspace({ onOpen }: { onOpen: () => void }) {
                   {section === "stashes" ? (
                     <StashList
                       stashes={stashes.data ?? []}
+                      query={search}
                       selected={selectedStash}
                       onSelect={(stash) => active && setStashIndex((current) => ({ ...current, [active]: stash.index }))}
-                      onApply={(stash) => active && void mutate(active, "Apply stash", () => api.stashAction(active, "apply", stash.index))}
-                      onPop={(stash) => confirmStash("pop", stash.index, stash.message)}
-                      onDrop={(stash) => confirmStash("drop", stash.index, stash.message)}
+                      onApply={(stash) => active && void mutate(active, "Apply stash", () => api.stashAction(active, "apply", stash.index), true)}
+                      onPop={(stash) => { dropSearch(); confirmStash("pop", stash.index, stash.message); }}
+                      onDrop={(stash) => { dropSearch(); confirmStash("drop", stash.index, stash.message); }}
                     />
                   ) : null}
                   {!statusPending && !status && active ? <Text p="sm" c="dimmed">Waiting for repository status.</Text> : null}
@@ -451,7 +458,12 @@ function selectFile(repo: string, file: FileEntry, kind: FileDiffKind) {
     useUiStore.getState().setFocus(repo, { path: file.path, kind });
   }
 
-  async function mutate(repo: string, label: string, action: () => Promise<void>) {
+  function dropSearch() {
+    if (active) useUiStore.getState().clearSearch(active, section);
+  }
+
+  async function mutate(repo: string, label: string, action: () => Promise<void>, clearSearch = false) {
+    if (clearSearch) dropSearch();
     await runMutation(queryClient, repo, label, action);
   }
 

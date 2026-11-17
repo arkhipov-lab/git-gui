@@ -1,4 +1,4 @@
-import { Button, Loader, Menu, TextInput } from "@mantine/core";
+import { Button, Loader, Menu } from "@mantine/core";
 import { useLayoutEffect, useRef, useState } from "react";
 import styles from "../../styles/app.module.css";
 
@@ -11,8 +11,6 @@ interface Action {
 
 export function CommandBar({
   disabled,
-  search,
-  onSearch,
   onRefresh,
   onFetch,
   onPull,
@@ -28,8 +26,6 @@ export function CommandBar({
   activity,
 }: {
   disabled: boolean;
-  search: string;
-  onSearch: (value: string) => void;
   onRefresh: () => void;
   onFetch: () => void;
   onPull: () => void;
@@ -74,7 +70,6 @@ export function CommandBar({
   ];
   const host = useRef<HTMLDivElement>(null);
   const measure = useRef<HTMLDivElement>(null);
-  const searchBox = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(actions.length);
   useLayoutEffect(() => {
     const node = host.current;
@@ -82,9 +77,8 @@ export function CommandBar({
     if (!node || !samples) return;
     const update = () => {
       const buttons = [...samples.children] as HTMLElement[];
-      const searchWidth = (searchBox.current?.offsetWidth ?? 168) + 8;
       const moreWidth = 40;
-      const available = node.clientWidth - searchWidth;
+      const available = node.clientWidth;
       const widths = buttons.map((button) => button.offsetWidth + 4);
       const total = widths.reduce((sum, width) => sum + width, 0);
       if (total <= available) {
@@ -150,15 +144,6 @@ export function CommandBar({
           </Menu.Dropdown>
         </Menu>
       ) : null}
-      <div ref={searchBox}>
-        <TextInput
-          id="repo-search"
-          style={{ width: 168 }}
-          placeholder="Search"
-          value={search}
-          onChange={(event) => onSearch(event.currentTarget.value)}
-        />
-      </div>
     </div>
   );
 }
